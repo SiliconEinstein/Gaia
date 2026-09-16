@@ -1,11 +1,11 @@
 # `gaia search`
 
 Search external retrieval providers for Gaia authoring. LKM (Large Knowledge
-Model) is Bohrium's shared-knowledge layer, built on a subset of the Gaia
-language: it integrates, curates, retrieves, and reasons over published
-structured knowledge. In Gaia CLI, the LKM backend is a read-only source of
-papers, paper knowledge items, reasoning chains, workflows, bibliographic
-references, and extracted per-paper graphs.
+Model) turns papers into source-grounded reasoning graphs: questions, claims,
+reasoning chains, and evidence become addressable units, aligned across
+papers. In Gaia CLI, the LKM backend is a read-only source of papers, paper
+knowledge items, reasoning chains, workflows, bibliographic references, and
+extracted per-paper graphs.
 
 ```text
 gaia search lkm knowledge <query>           Find claims/questions/abstracts by topic
@@ -23,8 +23,8 @@ gaia search lkm docs                        Print API documentation links
 gaia search lkm auth ...                    Manage the LKM access key
 ```
 
-These verbs search that shared layer. A local PDF that may not be in LKM is
-`gaia extract`, not this group.
+These verbs search those reasoning graphs. A local PDF that may not be in LKM
+is `gaia extract`, not this group.
 
 The current implementation is an LKM provider adapter. Search-oriented LKM
 verbs write raw LKM JSON to stdout, or to `--out PATH`. Gaia follow-up

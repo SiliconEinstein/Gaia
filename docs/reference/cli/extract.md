@@ -1,7 +1,7 @@
 # `gaia extract`
 
 Turn a local PDF into LKM-extracted knowledge. Where [`gaia search`](search.md)
-searches Bohrium's shared-knowledge layer, this group goes the other direction:
+searches LKM reasoning graphs, this group goes the other direction:
 hand LKM a PDF you hold and get back the research questions, conclusions, and
 reasoning steps it extracts from that file.
 

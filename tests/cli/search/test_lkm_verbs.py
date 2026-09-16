@@ -125,8 +125,8 @@ class TestDocs:
         assert "open questions" in stdout
         assert "reasoning chains and workflows" in stdout
         assert "bibliographic forward references" in stdout
-        assert "shared-knowledge layer" in stdout
-        assert "integrates, curates, retrieves" in stdout
+        assert "source-grounded reasoning graphs" in stdout
+        assert "addressable units" in stdout
         assert "generic graph API" in stdout
         assert "claims, questions, or abstracts by topic/wording -> knowledge" in stdout
         assert "a similar argument, derivation, or experiment -> reasoning <query>" in stdout

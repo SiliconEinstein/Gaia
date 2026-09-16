@@ -37,10 +37,10 @@ _LKM_EPILOG = (
     "Auth: every call needs a Bohrium access key. Run "
     "`gaia search lkm auth login` to set one up (or set "
     "GAIA_LKM_ACCESS_KEY / LKM_ACCESS_KEY).\n\n"
-    "LKM (Large Knowledge Model) is Bohrium's shared-knowledge layer, built "
-    "on a subset of the Gaia language: it integrates, curates, retrieves, "
-    "and reasons over published structured knowledge. It is not Gaia's "
-    "local IR, not a Gaia knowledge package, and not a generic graph API.\n\n"
+    "LKM (Large Knowledge Model) turns papers into source-grounded reasoning "
+    "graphs: questions, claims, reasoning chains, and evidence become "
+    "addressable units, aligned across papers. It is not Gaia's local IR, "
+    "not a Gaia knowledge package, and not a generic graph API.\n\n"
     "Search surfaces: `knowledge` retrieves paper knowledge items, including "
     "conclusion claims, weak-point / highlight claims, problems, and open "
     "questions. `reasoning` retrieves reasoning chains and workflows. `package` "
@@ -59,7 +59,7 @@ _LKM_EPILOG = (
 
 lkm_app = typer.Typer(
     name="lkm",
-    help="Search Bohrium LKM shared knowledge.",
+    help="Search LKM reasoning graphs.",
     epilog=_LKM_EPILOG,
     no_args_is_help=True,
 )
