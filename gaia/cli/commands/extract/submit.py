@@ -36,20 +36,28 @@ _MAX_POLL_INTERVAL = 300.0
 _MAX_TIMEOUT = 86400.0
 
 _SUBMIT_EPILOG = (
+    "Examples:\n\n"
+    "  gaia extract submit paper.pdf\n\n"
+    "  gaia extract submit paper.pdf --wait\n\n"
+    "What you have:\n\n"
+    "  a local PDF, return the task id now  ->  submit\n\n"
+    "  a local PDF, block until terminal    ->  submit --wait\n\n"
+    "  already have a task_id               ->  status / result\n\n"
     "Use this when you hold a PDF that may not be in the LKM corpus yet. "
     "Resubmitting the same PDF reuses the existing extraction rather than "
-    "starting over, so an already-processed PDF comes back terminal "
-    "immediately with `cache_hit`. `cache_source` says where that reuse came "
-    "from: `lkm` when the paper was already extracted in the corpus, `local` "
-    "when an earlier submission of this same PDF produced it. Resubmitting "
-    "will not hurry a running task along: the same user and PDF still "
-    "queued or running returns business error 290020 with the existing "
-    "task_id.\n\n"
+    "starting over; still branch on `status`. `cache_source` says where a "
+    "reuse came from: `lkm` when the paper was already extracted in the "
+    "corpus, `local` when an earlier submission of this same PDF produced "
+    "it. Resubmitting will not hurry a running task along: the same user "
+    "and PDF still queued or running returns business error 290020 with "
+    "the existing task_id.\n\n"
     "Without --wait, submit returns immediately with the full submit envelope "
     "on stdout (not just the task id). Save `data.task_id` from it and poll "
     "with `gaia extract status`, or pass --wait to have this command poll for "
     "you.\n\n"
-    f"API docs: {APIFOX_SUBMIT_URL}"
+    "Extract costs 1.00 CNY per successful paper, or 0.10 CNY on a cache hit.\n\n"
+    f"API docs: {APIFOX_SUBMIT_URL}\n\n"
+    "Endpoint links: gaia extract docs"
 )
 
 
@@ -96,7 +104,10 @@ def submit_command(
         typer.Option("--no-hint", help="Suppress Gaia follow-up suggestions on stderr."),
     ] = False,
 ) -> None:
-    """Submit a local PDF for LKM knowledge extraction (POST /parse/task)."""
+    """Submit a local PDF for LKM knowledge extraction.
+
+    POST /parse/task.
+    """
     index_id = validate_lkm_index(index)
     validate_pdf(pdf)
     if wait:

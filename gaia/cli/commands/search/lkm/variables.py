@@ -15,6 +15,7 @@ import typer
 from gaia.cli.commands.search.lkm._shared import (
     DEFAULT_LKM_INDEX_ID,
     MAX_VARIABLE_IDS,
+    SEARCH_BILLING_NOTE,
     emit,
     run_request,
     validate_lkm_index,
@@ -22,10 +23,18 @@ from gaia.cli.commands.search.lkm._shared import (
 from gaia.cli.commands.search.lkm.docs import APIFOX_VARIABLES_BATCH_URL
 
 _NODES_EPILOG = (
+    "Examples:\n\n"
+    "  gaia search lkm nodes gcn_...\n\n"
+    "  gaia search lkm nodes --ids-file ids.txt\n\n"
+    "What you have:\n\n"
+    "  one or more global gcn_... / node ids  ->  nodes\n\n"
+    "  claims, questions, or abstracts by topic/wording  ->  knowledge\n\n"
+    "  a similar argument, derivation, or experiment     ->  reasoning\n\n"
     "Use this for follow-up inspection when a search or reasoning response "
     "prints specific LKM node ids. Partial misses are returned in `not_found` and do "
     "not make the whole response fail.\n\n"
-    f"API docs: {APIFOX_VARIABLES_BATCH_URL}\n"
+    f"{SEARCH_BILLING_NOTE}\n\n"
+    f"API docs: {APIFOX_VARIABLES_BATCH_URL}\n\n"
     "Endpoint links: gaia search lkm docs"
 )
 
@@ -51,7 +60,10 @@ def nodes_command(
         typer.Option("--out", help="Write JSON to PATH (atomic) instead of stdout."),
     ] = None,
 ) -> None:
-    """Batch-fetch LKM node record detail."""
+    """Batch-fetch LKM node record detail.
+
+    POST /variables/batch.
+    """
     index_id = validate_lkm_index(index)
     merged: list[str] = list(ids or [])
 

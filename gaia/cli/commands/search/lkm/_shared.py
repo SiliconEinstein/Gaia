@@ -8,6 +8,8 @@ the pagination / filter caps that only the retrieval endpoints have.
 
 from __future__ import annotations
 
+from datetime import date
+
 import typer
 
 from gaia.cli._lkm_runtime import (
@@ -19,16 +21,23 @@ from gaia.cli._lkm_runtime import (
     validate_lkm_server,
 )
 
-# Lexical-channel keyword cap, shared by knowledge / reasoning.
+# Lexical-channel keyword caps, shared by knowledge / reasoning.
 MAX_KEYWORDS = 10
-# Per-call id caps.
-MAX_OFFSET = 10000
+MAX_KEYWORD_LENGTH = 100
+# POST /search and /reasoning/search reject offset > 2000.
+MAX_OFFSET = 2000
+DEFAULT_SEARCH_LIMIT = 10
 MAX_LIMIT = 100
 MAX_PAPER_IDS = 50
 MAX_DOIS = 50
 MAX_VARIABLE_IDS = 100
 # Combined paper_ids + dois cap for POST /papers/reference (before dedupe).
 MAX_REFERENCE_SEEDS = 20
+SEARCH_BILLING_NOTE = (
+    "Search and lookup calls cost 0.05 CNY each, covered first by LKM's "
+    "personal monthly 1,000-call quota."
+)
+EXTRACT_BILLING_NOTE = "Extract costs 1.00 CNY per successful paper, or 0.10 CNY on a cache hit."
 
 
 def validate_search_window(offset: int, limit: int) -> None:
@@ -45,6 +54,58 @@ def validate_search_window(offset: int, limit: int) -> None:
             err=True,
         )
         raise typer.Exit(4)
+
+
+def validate_keywords(keywords: list[str] | None) -> None:
+    """Validate lexical keywords accepted by LKM search endpoints."""
+    if not keywords:
+        return
+    if len(keywords) > MAX_KEYWORDS:
+        typer.echo(
+            f"Error: at most {MAX_KEYWORDS} --keywords allowed; got {len(keywords)}.",
+            err=True,
+        )
+        raise typer.Exit(4)
+    for keyword in keywords:
+        if len(keyword.encode("utf-8")) > MAX_KEYWORD_LENGTH:
+            typer.echo(
+                f"Error: each --keywords value must be at most {MAX_KEYWORD_LENGTH} "
+                f"bytes; got {len(keyword.encode('utf-8'))} for {keyword!r}.",
+                err=True,
+            )
+            raise typer.Exit(4)
+
+
+def validate_publication_dates(
+    publication_date_start: str | None,
+    publication_date_end: str | None,
+) -> None:
+    """Validate LKM publication-date bounds as YYYY-MM-DD with start <= end."""
+    start = _parse_publication_date(publication_date_start, option_name="--publication-date-start")
+    end = _parse_publication_date(publication_date_end, option_name="--publication-date-end")
+    if start is not None and end is not None and start > end:
+        typer.echo(
+            "Error: --publication-date-start must be on or before --publication-date-end.",
+            err=True,
+        )
+        raise typer.Exit(4)
+
+
+def _parse_publication_date(raw: str | None, *, option_name: str) -> date | None:
+    if raw is None:
+        return None
+    value = raw.strip()
+    try:
+        parsed = date.fromisoformat(value)
+    except ValueError:
+        parsed = None
+    if parsed is None or value != parsed.isoformat():
+        typer.echo(
+            f"Error: {option_name} must be YYYY-MM-DD; got {raw!r}.",
+            err=True,
+        )
+        raise typer.Exit(4)
+    return parsed
 
 
 def validate_paper_ids(paper_ids: list[str] | None, *, option_name: str = "--paper-ids") -> None:
@@ -65,7 +126,7 @@ def validate_paper_ids(paper_ids: list[str] | None, *, option_name: str = "--pap
             err=True,
         )
         raise typer.Exit(4)
-    non_numeric = [pid for pid in paper_ids if not pid.isdigit()]
+    non_numeric = [pid for pid in paper_ids if not (pid.isascii() and pid.isdigit())]
     if non_numeric:
         typer.echo(
             f"Error: {option_name} must be numeric paper ids; got {non_numeric}.",
@@ -134,7 +195,7 @@ def _normalize_reference_paper_ids(paper_ids: list[str] | None) -> list[str]:
                 err=True,
             )
             raise typer.Exit(4)
-        if not value.isdigit():
+        if not (value.isascii() and value.isdigit()):
             typer.echo(
                 f"Error: --paper-id must be a numeric paper id; got {raw!r}.",
                 err=True,
@@ -159,20 +220,26 @@ def _normalize_reference_dois(dois: list[str] | None) -> list[str]:
 
 __all__ = [
     "DEFAULT_LKM_INDEX_ID",
+    "DEFAULT_SEARCH_LIMIT",
+    "EXTRACT_BILLING_NOTE",
     "MAX_DOIS",
     "MAX_KEYWORDS",
+    "MAX_KEYWORD_LENGTH",
     "MAX_LIMIT",
     "MAX_OFFSET",
     "MAX_PAPER_IDS",
     "MAX_REFERENCE_SEEDS",
     "MAX_VARIABLE_IDS",
+    "SEARCH_BILLING_NOTE",
     "LKMClient",
     "emit",
     "run_request",
     "validate_dois",
+    "validate_keywords",
     "validate_lkm_index",
     "validate_lkm_server",
     "validate_paper_ids",
+    "validate_publication_dates",
     "validate_reference_seeds",
     "validate_search_window",
 ]

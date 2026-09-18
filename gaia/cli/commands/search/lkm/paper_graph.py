@@ -15,6 +15,7 @@ import typer
 from gaia.cli.commands.search.lkm._hints import package_hint
 from gaia.cli.commands.search.lkm._shared import (
     DEFAULT_LKM_INDEX_ID,
+    SEARCH_BILLING_NOTE,
     emit,
     run_request,
     validate_lkm_index,
@@ -23,11 +24,21 @@ from gaia.cli.commands.search.lkm.docs import APIFOX_PAPERS_GRAPH_URL
 
 _TITLE_RESOLVE_CAP = 20
 _PACKAGE_EPILOG = (
+    "Examples:\n\n"
+    "  gaia search lkm package --paper-id <paper_id>\n\n"
+    "  gaia search lkm package --doi 10.1234/example\n\n"
+    "What you have:\n\n"
+    "  a numeric paper ID  ->  --paper-id\n\n"
+    "  a paper:N ref       ->  --package-id\n\n"
+    "  a DOI               ->  --doi\n\n"
+    "  only a title        ->  --title\n\n"
+    "  a local PDF         ->  gaia extract\n\n"
     "Use this when you already know the paper and want the full extracted LKM "
     "paper graph for that source paper. To add that graph to the current Gaia "
     "package, use the suggested "
     "`gaia pkg add --lkm-paper <id>` command printed on stderr.\n\n"
-    f"API docs: {APIFOX_PAPERS_GRAPH_URL}\n"
+    f"{SEARCH_BILLING_NOTE}\n\n"
+    f"API docs: {APIFOX_PAPERS_GRAPH_URL}\n\n"
     "Endpoint links: gaia search lkm docs"
 )
 
@@ -69,7 +80,10 @@ def package_command(
         typer.Option("--no-hint", help="Suppress Gaia follow-up suggestions on stderr."),
     ] = False,
 ) -> None:
-    """Fetch an LKM paper package candidate (POST /papers/graph)."""
+    """Fetch an LKM paper package candidate.
+
+    POST /papers/graph.
+    """
     index_id = validate_lkm_index(index)
     identifiers = {
         "package_id": package_id,
@@ -90,6 +104,35 @@ def package_command(
             )
         raise typer.Exit(4)
 
+    identifier_name, identifier_value = next(iter(supplied.items()))
+    identifier_value = identifier_value.strip()
+    option_name = f"--{identifier_name.replace('_', '-')}"
+    if not identifier_value:
+        typer.echo(f"Error: {option_name} must be non-empty.", err=True)
+        raise typer.Exit(4)
+    if identifier_name == "paper_id" and not (
+        identifier_value.isascii() and identifier_value.isdigit()
+    ):
+        typer.echo(
+            "Error: --paper-id must be a bare numeric LKM paper id "
+            f"without a `paper:` prefix; got {identifier_value!r}.",
+            err=True,
+        )
+        raise typer.Exit(4)
+    if identifier_name == "package_id":
+        package_paper_id = identifier_value.removeprefix("paper:")
+        if (
+            not identifier_value.startswith("paper:")
+            or not package_paper_id.isascii()
+            or not package_paper_id.isdigit()
+        ):
+            typer.echo(
+                f"Error: --package-id must look like `paper:<digits>`; got {identifier_value!r}.",
+                err=True,
+            )
+            raise typer.Exit(4)
+    supplied[identifier_name] = identifier_value
+
     title_limit_explicit = title_resolve_limit != 5
     if title is None and title_limit_explicit:
         typer.echo("Error: --title-resolve-limit is only valid with --title.", err=True)
@@ -107,7 +150,9 @@ def package_command(
         body["title_resolve"] = {"limit": title_resolve_limit}
 
     payload = run_request("POST", "/papers/graph", json_body=body, index_id=index_id)
-    requested_paper_id = paper_id or _paper_id_from_package_id(package_id)
+    requested_paper_id = supplied.get("paper_id") or _paper_id_from_package_id(
+        supplied.get("package_id")
+    )
     emit(
         payload,
         out,

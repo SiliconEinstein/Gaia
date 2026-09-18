@@ -27,10 +27,17 @@ class FeedbackType(StrEnum):
 
 
 _FEEDBACK_EPILOG = (
+    "Examples:\n\n"
+    '  gaia search lkm feedback --type bug "ranking looks off for this query"\n\n'
+    "What you have:\n\n"
+    "  a service or data issue      ->  feedback --type bug|feature|question\n\n"
+    "  a node to attach             ->  --gcn-id\n\n"
+    "  a paper metadata record      ->  --paper-metadata-id\n\n"
+    "  a knowledge search           ->  knowledge, not this command\n\n"
     "Submit LKM service/data feedback. This endpoint writes a feedback record "
     "and returns no knowledge content. Link at most one target: --gcn-id for a "
     "node or --paper-metadata-id for a paper metadata record.\n\n"
-    f"API docs: {APIFOX_FEEDBACK_URL}\n"
+    f"API docs: {APIFOX_FEEDBACK_URL}\n\n"
     "Endpoint links: gaia search lkm docs"
 )
 
@@ -65,7 +72,10 @@ def feedback_command(
         typer.Option("--out", help="Write JSON to PATH (atomic) instead of stdout."),
     ] = None,
 ) -> None:
-    """Submit LKM service/data feedback (POST /feedback)."""
+    """Submit LKM service/data feedback.
+
+    POST /feedback.
+    """
     index_id = validate_lkm_index(index)
     stripped = content.strip()
     if not stripped:

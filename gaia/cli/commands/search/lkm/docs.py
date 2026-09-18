@@ -23,6 +23,16 @@ ENDPOINT_DOCS: tuple[tuple[str, str], ...] = (
 )
 
 
+_DOCS_EPILOG = (
+    "Examples:\n\n"
+    "  gaia search lkm docs\n\n"
+    "What you have:\n\n"
+    "  claims, questions, or abstracts by topic/wording  ->  knowledge\n\n"
+    "  a similar argument, derivation, or experiment     ->  reasoning\n\n"
+    "  a local PDF          ->  gaia extract"
+)
+
+
 def docs_command() -> None:
     """Print LKM API documentation links."""
     lines = [
@@ -42,5 +52,6 @@ __all__ = [
     "APIFOX_FEEDBACK_URL",
     "ENDPOINT_DOCS",
     "PAPERS_REFERENCE_PATH",
+    "_DOCS_EPILOG",
     "docs_command",
 ]

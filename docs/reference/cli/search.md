@@ -1,16 +1,16 @@
 # `gaia search`
 
 Search external retrieval providers for Gaia authoring. LKM (Large Knowledge
-Model) is Bohrium's agent-ready paper search engine for grounding scientific
-claims, inspecting reasoning chains, and resolving source papers. In Gaia CLI,
-the LKM backend is a read-only source of papers, paper knowledge items,
-reasoning chains, workflows, bibliographic references, and extracted
-per-paper graphs.
+Model) turns papers into source-grounded reasoning graphs: questions, claims,
+reasoning chains, and evidence become addressable units, aligned across
+papers. In Gaia CLI, the LKM backend is a read-only source of papers, paper
+knowledge items, reasoning chains, workflows, bibliographic references, and
+extracted per-paper graphs.
 
 ```text
-gaia search lkm knowledge <query>           Search LKM paper knowledge items
-gaia search lkm reasoning <query>           Search LKM reasoning chains
-gaia search lkm reasoning --claim-id <id>   Fetch reasoning chains for one claim
+gaia search lkm knowledge <query>           Find claims/questions/abstracts by topic
+gaia search lkm reasoning <query>           Find similar arguments or experiments
+gaia search lkm reasoning --claim-id <id>   Fetch reasoning for a supported conclusion
 gaia search lkm nodes <ids...>              Fetch LKM node records by id
 gaia search lkm package --paper-id <id>     Fetch one LKM paper package candidate
 gaia search lkm package --package-id paper:<id>
@@ -23,6 +23,11 @@ gaia search lkm docs                        Print API documentation links
 gaia search lkm auth ...                    Manage the LKM access key
 ```
 
+These verbs search those reasoning graphs. Search and lookup calls cost 0.05
+CNY each, covered first by LKM's personal monthly 1,000-call quota. A local
+PDF that may not be in LKM is `gaia extract` (1.00 CNY per successful paper,
+or 0.10 CNY on a cache hit), not this group.
+
 The current implementation is an LKM provider adapter. Search-oriented LKM
 verbs write raw LKM JSON to stdout, or to `--out PATH`. Gaia follow-up
 suggestions are printed on stderr by default so stdout stays machine-readable
@@ -30,21 +35,23 @@ JSON. Use `--no-hint` to suppress those suggestions.
 
 Conceptually, LKM searches over scientific papers' conclusion claims, weak-point
 / highlight claims, addressed problems, open questions, reasoning chains, and
-workflows. LKM is not Gaia's internal IR, not a Gaia knowledge package, and not
+workflows. LKM is not Gaia's local IR, not a Gaia knowledge package, and not
 a generic graph API. Treat its results as corpus-backed evidence
 with paper provenance that can be inspected directly or materialized into Gaia
 packages with explicit follow-up commands.
 
-LKM has two parallel search surfaces:
+LKM has two complementary search surfaces:
 
 - `knowledge <query>` performs a fused search over selected scopes: claims,
-  research questions, abstracts, and optionally complete reasoning chains.
-- `reasoning <query>` searches reasoning chains and workflows.
+  research questions, abstracts, and optionally complete reasoning chains by
+  topic or wording.
+- `reasoning <query>` searches for a similar whole argument, derivation,
+  calculation, experimental process, or workflow.
 
 Optional follow-ups:
 
 ```bash
-gaia search lkm knowledge "solid state battery dendrite suppression" --reasoning-only
+gaia search lkm knowledge "solid state battery dendrite suppression" --scopes conclusion
 gaia search lkm knowledge "unresolved battery failure mechanisms" --scopes open_question
 gaia search lkm reasoning "solid state battery dendrite suppression"
 gaia search lkm reasoning --claim-id <gcn_id>
@@ -53,32 +60,39 @@ gaia search lkm references --paper-id <paper_id>
 gaia pkg add --lkm-index bohrium --lkm-paper <paper_id>
 ```
 
-Use `--claim-id` when you already have a claim id and want that claim's
-supporting reasoning graph. Question ids cannot be used with `--claim-id`.
+Any global `gcn_...` / node id can be inspected with `nodes`. Use
+`--claim-id` only for a conclusion claim reported with `has_reasoning=true`
+when you want its supporting reasoning graph. Premise and question ids cannot
+be used with `--claim-id`.
 Use `package` to fetch a paper graph, `references` for bibliographic
 forward-reference / cited-by cards, and `gaia pkg add` when that paper should
 become an editable dependency of the current Gaia package.
 
-Use `knowledge --scopes conclusion` when the goal is to find conclusion claims.
-The older `--reasoning-only` flag remains a legacy alias for claim searches
-that only want reasoning-backed conclusions, but it should not be combined with
-`--scopes conclusion`. For best recall, use default `hybrid` mode with
-`--keywords`. Use `--retrieval-mode semantic` when speed matters more than
-recall quality. Use `--retrieval-mode lexical` only for exact keyword matching.
+Omit `--scopes` to use LKM's default: conclusion claims plus abstracts. Use
+`knowledge --scopes conclusion` when the goal is only conclusion claims, or
+`--scopes premise` for premises. Response `kind` values such as `highlight` /
+`weak_point` are claim display labels, not search filters. For best
+recall, use default `hybrid` mode with `--keywords`. Use
+`--retrieval-mode semantic` when speed matters more than recall quality. Use
+`--retrieval-mode lexical` only for exact keyword matching.
 `knowledge` tracks the latest `POST /search` API shape: `--sort-by` maps to
 `sort_by` (`relevance`, `recent`, `journal`, or `comprehensive`), while
 repeatable `--paper-id` / `--paper-ids` and `--doi` / `--dois` map to
 `filters.paper_ids` and `filters.dois`. `--title` maps to `filters.title`.
 `--publication-date-start`, `--publication-date-end`, and
 `--limit-publication-date/--no-limit-publication-date` map to the LKM
-publication-date filters. `--paper-id(s)` and `--doi(s)` each accept up to 50
-values; paper ids must be bare numeric ids without a `paper:` prefix. The
-default Gaia CLI ordering is `comprehensive`; the server applies its own
-default date window unless `--no-limit-publication-date` is passed.
+publication-date filters. Dates must be `YYYY-MM-DD`. `--paper-id(s)` and
+`--doi(s)` each accept up to 50 values; paper ids must be bare numeric ids
+without a `paper:` prefix. `--offset` is capped at 2000; each `--keywords`
+value is at most 100 bytes. The default Gaia CLI ordering is
+`comprehensive`; the server applies its own default date window unless
+`--no-limit-publication-date` is passed.
 `--scopes abstract` asks for paper-level abstract hits; use them as paper
 background context rather than Gaia claims. Same-paper `related` entries are
 folded context for the representative paper hit, not cross-paper
 recommendations or complete paper graphs.
+
+`knowledge` returns 10 hits by default; pass `--limit` to request 1–100.
 
 The full scope hierarchy is:
 
@@ -117,7 +131,8 @@ accepts `--retrieval-mode`, `--keywords`, `--sort-by`, `--paper-id` /
 `total`; it may also include `papers` when the backend provides paper metadata.
 Query-mode `--sort-by` maps to `sort_by` and accepts `relevance`, `recent`,
 `journal`, and `comprehensive`; `--paper-id(s)`, `--doi(s)`, and `--title` map
-to LKM filters and are intersected upstream.
+to LKM filters and are intersected upstream. Query mode returns 10 chains by
+default; pass `--limit` to request 1–100.
 `--claim-id` mode instead calls `GET /claims/{id}/reasoning` and accepts
 `--max-chains` plus `--sort-by comprehensive|recent`.
 
@@ -128,13 +143,12 @@ response a business error. This endpoint does not apply a visibility filter.
 `package` requires exactly one identifier flag: `--package-id`, `--paper-id`,
 `--doi`, or `--title`. `--title` may return several candidate papers and accepts
 `--title-resolve-limit`; the other identifier modes address one paper directly.
-The CLI keeps `/papers/graph` on the default raw paper-graph shape and does not
-expose deprecated projection / hydration switches.
+The CLI keeps `/papers/graph` on the default raw paper-graph shape.
 
 `references` looks up bibliographic paper cards (`POST /papers/reference`) for
 papers already identified by `--paper-id` and/or `--doi` (repeatable; at least
 one side required). Combined seeds are capped at 20 before dedupe. A `paper:`
-prefix on `--paper-id` is stripped. There is no `--title` or `--package-id`.
+prefix on `--paper-id` is stripped.
 The three include switches are always sent and match the HTTP defaults:
 `--with-abstract` (on), `--with-reference` (off), `--with-cited-by` (on). The
 response uses `data.papers`. An empty paper `id` means LKM has not covered

@@ -18,14 +18,20 @@ from gaia.cli.commands.search.lkm._hints import reasoning_hint
 from gaia.cli.commands.search.lkm._indexes import normalize_lkm_index_id
 from gaia.cli.commands.search.lkm._shared import (
     DEFAULT_LKM_INDEX_ID,
+    DEFAULT_SEARCH_LIMIT,
     MAX_DOIS,
+    MAX_KEYWORD_LENGTH,
     MAX_KEYWORDS,
+    MAX_OFFSET,
     MAX_PAPER_IDS,
+    SEARCH_BILLING_NOTE,
     emit,
     run_request,
     validate_dois,
+    validate_keywords,
     validate_lkm_index,
     validate_paper_ids,
+    validate_publication_dates,
     validate_search_window,
 )
 from gaia.cli.commands.search.lkm.docs import (
@@ -41,6 +47,15 @@ SortBy = SearchSortBy
 _MAX_CHAINS_CAP = 100
 
 _REASONING_EPILOG = (
+    "Examples:\n\n"
+    '  gaia search lkm reasoning "solid state battery dendrite suppression"\n\n'
+    "  gaia search lkm reasoning --claim-id <gcn_id>\n\n"
+    "What you have:\n\n"
+    "  a similar argument, derivation, or experiment  ->  reasoning <query>\n\n"
+    "  any global gcn_... / node id                  ->  nodes\n\n"
+    "  a conclusion gcn_... with has_reasoning=true  ->  reasoning --claim-id\n\n"
+    "  a question id                                  ->  nodes, not --claim-id\n\n"
+    "  a paper id from a hit   ->  package\n\n"
     "Use query mode as a search surface for reasoning chains and workflows. "
     "It is parallel to `knowledge <query>`, which searches paper knowledge "
     "items such as conclusions, weak points, highlights, problems, and open "
@@ -51,8 +66,9 @@ _REASONING_EPILOG = (
     "publication dates, --sort-by). "
     "--claim-id mode fetches one claim's backing chains and only accepts "
     "--max-chains plus --sort-by comprehensive|recent.\n\n"
+    f"{SEARCH_BILLING_NOTE}\n\n"
     f"Query API docs: {APIFOX_REASONING_SEARCH_URL}\n\n"
-    f"Claim API docs: {APIFOX_CLAIM_REASONING_URL}\n"
+    f"Claim API docs: {APIFOX_CLAIM_REASONING_URL}\n\n"
     "Endpoint links: gaia search lkm docs"
 )
 
@@ -60,7 +76,7 @@ _REASONING_EPILOG = (
 def reasoning_command(
     query: Annotated[
         str | None,
-        typer.Argument(help="Topic to search for reasoning chains or workflows."),
+        typer.Argument(help="Argument, derivation, or experiment whose process should match."),
     ] = None,
     index: Annotated[
         str | None,
@@ -84,7 +100,10 @@ def reasoning_command(
         list[str] | None,
         typer.Option(
             "--keywords",
-            help=f"Keyword for the lexical channel (repeatable, max {MAX_KEYWORDS}).",
+            help=(
+                f"Keyword for the lexical channel (repeatable, max {MAX_KEYWORDS}, "
+                f"each at most {MAX_KEYWORD_LENGTH} bytes)."
+            ),
         ),
     ] = None,
     paper_ids: Annotated[
@@ -158,12 +177,12 @@ def reasoning_command(
     ] = SortBy.COMPREHENSIVE,
     offset: Annotated[
         int,
-        typer.Option("--offset", help="Query-search pagination offset (max 10000)."),
+        typer.Option("--offset", help=f"Query-search pagination offset (max {MAX_OFFSET})."),
     ] = 0,
     limit: Annotated[
         int,
         typer.Option("--limit", help="Query-search page size (max 100)."),
-    ] = 20,
+    ] = DEFAULT_SEARCH_LIMIT,
     out: Annotated[
         Path | None,
         typer.Option("--out", help="Write JSON to PATH (atomic) instead of stdout."),
@@ -173,7 +192,10 @@ def reasoning_command(
         typer.Option("--no-hint", help="Suppress Gaia follow-up suggestions on stderr."),
     ] = False,
 ) -> None:
-    """Search reasoning chains, or fetch them for one claim with --claim-id."""
+    """Search reasoning chains, or fetch them for one claim with --claim-id.
+
+    Query: POST /reasoning/search. Claim: GET /claims/{id}/reasoning.
+    """
     # A claim id may arrive bare (``gcn_…``) or in the prefixed form printed
     # in search results (``lkm:<index>:gcn_…``). The prefixed form carries its
     # own index; parse it off and reconcile with an explicit --index.
@@ -207,7 +229,7 @@ def reasoning_command(
             or publication_date_end
             or not limit_publication_date
             or offset != 0
-            or limit != 20
+            or limit != DEFAULT_SEARCH_LIMIT
             or retrieval_mode != RetrievalMode.HYBRID
         ):
             typer.echo(
@@ -356,15 +378,11 @@ def _search_reasoning(
     if not query.strip():
         typer.echo("Error: query must be non-empty.", err=True)
         raise typer.Exit(4)
-    if keywords and len(keywords) > MAX_KEYWORDS:
-        typer.echo(
-            f"Error: at most {MAX_KEYWORDS} --keywords allowed; got {len(keywords)}.",
-            err=True,
-        )
-        raise typer.Exit(4)
+    validate_keywords(keywords)
     validate_search_window(offset, limit)
     validate_paper_ids(paper_ids)
     validate_dois(dois)
+    validate_publication_dates(publication_date_start, publication_date_end)
 
     body = build_reasoning_search_body(
         query=query,

@@ -7,5 +7,5 @@
   ],
   "exit_code": 0,
   "stderr": "",
-  "stdout": "\n Usage: gaia search lkm docs [OPTIONS]\n\n Print LKM API documentation links.\n\n╭─ Options ────────────────────────────────────────────────────────────────────╮\n│ --help          Show this message and exit.                                  │\n╰──────────────────────────────────────────────────────────────────────────────╯\n\n"
+  "stdout": "\n Usage: gaia search lkm docs [OPTIONS]\n\n Print LKM API documentation links.\n\n╭─ Options ────────────────────────────────────────────────────────────────────╮\n│ --help          Show this message and exit.                                  │\n╰──────────────────────────────────────────────────────────────────────────────╯\n\n Examples:\n gaia search lkm docs\n What you have:\n claims, questions, or abstracts by topic/wording  ->  knowledge\n a similar argument, derivation, or experiment     ->  reasoning\n a local PDF          ->  gaia extract\n\n\n"
 }

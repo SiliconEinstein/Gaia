@@ -516,23 +516,22 @@ with `gaia search lkm <verb> --help`.
 2. **Query LKM by title or anchor phrase.** Use the paper title; if it is
    too generic, supplement with one or two distinctive anchor phrases
    from the paper's contribution sentences (Phase 1 working notes are a
-   good source). Filter to claim-typed nodes with reasoning backing so
-   the next step has something to trace. The default stdout JSON is the
+   good source). Restrict the search to conclusion claims so the next
+   step has claim ids to trace. The default stdout JSON is the
    verbatim LKM envelope (`data.variables` with `provenance`) used for
    the provenance filter in step 3.
 
    ```bash
    gaia search lkm knowledge "<paper title or anchor phrase>" \
-     --scopes claim --reasoning-only \
+     --scopes conclusion \
      --limit 50 --out search.json
    ```
 
 3. **Filter the raw search-result entries** for entries whose
    `provenance.source_packages` list contains the input paper's
    `paper:<id>`. Those are LKM claims whose provenance traces back to
-   this paper. Collect the matching `gcn_*` ids (each will be
-   `type=claim` because of `--reasoning-only`) and their `data.papers`
-   metadata into working notes.
+   this paper. Collect the matching `gcn_*` ids (conclusion hits are
+   `type=claim`) and their `data.papers` metadata into working notes.
 4. **Fetch reasoning chains for each match.** For every matching
    `gcn_id`:
 

@@ -1,7 +1,8 @@
 """``gaia search`` — retrieval backends for knowledge-package authoring.
 
 Today this group hosts a single backend, ``lkm`` (Bohrium's Large Knowledge
-Model API for agent-ready paper search). The ``search`` parent is deliberately
+Model: source-grounded paper reasoning graphs).
+The ``search`` parent is deliberately
 a thin shell so future non-LKM retrieval backends can slot in alongside it
 without reshaping the verb tree.
 """

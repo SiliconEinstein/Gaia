@@ -6,5 +6,5 @@
   ],
   "exit_code": 0,
   "stderr": "",
-  "stdout": "\n Usage: gaia extract docs [OPTIONS]\n\n Print LKM extraction API documentation links.\n\n╭─ Options ────────────────────────────────────────────────────────────────────╮\n│ --help          Show this message and exit.                                  │\n╰──────────────────────────────────────────────────────────────────────────────╯\n\n"
+  "stdout": "\n Usage: gaia extract docs [OPTIONS]\n\n Print LKM extraction API documentation links.\n\n╭─ Options ────────────────────────────────────────────────────────────────────╮\n│ --help          Show this message and exit.                                  │\n╰──────────────────────────────────────────────────────────────────────────────╯\n\n Examples:\n gaia extract docs\n What you have:\n a PDF to extract        ->  submit\n a task_id               ->  status / result\n a paper already in LKM  ->  gaia search lkm\n\n\n"
 }

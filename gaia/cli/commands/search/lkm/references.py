@@ -16,6 +16,7 @@ from gaia.cli.commands.search.lkm._hints import references_hint
 from gaia.cli.commands.search.lkm._shared import (
     DEFAULT_LKM_INDEX_ID,
     MAX_REFERENCE_SEEDS,
+    SEARCH_BILLING_NOTE,
     emit,
     run_request,
     validate_lkm_index,
@@ -23,17 +24,26 @@ from gaia.cli.commands.search.lkm._shared import (
 )
 
 _REFERENCES_EPILOG = (
+    "Examples:\n\n"
+    "  gaia search lkm references --paper-id <paper_id>\n\n"
+    "  gaia search lkm references --doi 10.1234/example --with-reference\n\n"
+    "What you have:\n\n"
+    "  a paper ID or DOI, cited-by list  ->  references (default)\n\n"
+    "  a paper ID or DOI, forward refs   ->  --with-reference\n\n"
+    "  the extracted knowledge graph     ->  package\n\n"
+    "  only a title or paper:N ref       ->  package\n\n"
     "Use this when you already know paper ids or DOIs and want bibliographic "
     "forward references and/or reverse cited-by lists. This is a paper-card "
     "lookup, not a knowledge graph; use `package` for the extracted LKM paper "
-    "graph. Do not pass a title or package id.\n\n"
+    "graph.\n\n"
     "At least one of --paper-id / --doi is required (repeatable). Combined "
     f"seeds are capped at {MAX_REFERENCE_SEEDS} before dedupe. A `paper:` "
     "prefix on --paper-id is stripped.\n\n"
     "Defaults match the HTTP API and are always sent: --with-abstract, "
     "--no-with-reference, --with-cited-by. The response uses `data.papers`. "
     "An empty paper id means LKM has not covered that record.\n\n"
-    "API: POST /papers/reference\n"
+    f"{SEARCH_BILLING_NOTE}\n\n"
+    "API: POST /papers/reference\n\n"
     "Endpoint links: gaia search lkm docs"
 )
 
@@ -93,7 +103,10 @@ def references_command(
         typer.Option("--no-hint", help="Suppress Gaia follow-up suggestions on stderr."),
     ] = False,
 ) -> None:
-    """Look up paper references and cited-by lists (POST /papers/reference)."""
+    """Look up paper references and cited-by lists.
+
+    POST /papers/reference.
+    """
     index_id = validate_lkm_index(index)
     paper_ids, dois = validate_reference_seeds(paper_ids, dois)
 

@@ -1,6 +1,6 @@
 """``gaia extract`` — turn a local PDF into LKM-extracted knowledge.
 
-``gaia search lkm`` queries papers already ingested into LKM. This group is
+``gaia search lkm`` searches LKM reasoning graphs. This group is
 the other direction: hand LKM a PDF you hold and get back the research
 questions, conclusions, and reasoning steps it extracts from that file. It is
 a job surface, not a retrieval surface — submission is asynchronous and the
@@ -12,27 +12,38 @@ from __future__ import annotations
 
 import typer
 
-from gaia.cli.commands.extract.docs import APIFOX_BASE_URL, docs_command
+from gaia.cli.commands.extract.docs import _DOCS_EPILOG, APIFOX_BASE_URL, docs_command
 from gaia.cli.commands.extract.result import _RESULT_EPILOG, result_command
 from gaia.cli.commands.extract.status import _STATUS_EPILOG, status_command
 from gaia.cli.commands.extract.submit import _SUBMIT_EPILOG, submit_command
 
+# Rich reflows a single epilog paragraph: only a blank line (\n\n) starts a
+# new block. Keep examples and the "what you have" rows as their own blocks.
 _EXTRACT_EPILOG = (
+    "Examples:\n\n"
+    "  gaia extract submit paper.pdf\n\n"
+    "  gaia extract submit paper.pdf --wait\n\n"
+    "What you have:\n\n"
+    "  a local PDF                   ->  submit\n\n"
+    "  a task_id from submit         ->  status (call again to poll)\n\n"
+    "  a terminal task               ->  result\n\n"
+    "  a paper already in the corpus ->  gaia search lkm\n\n"
     "Auth: every call needs a Bohrium access key, the same one "
     "`gaia search lkm` uses. Run `gaia search lkm auth login` to set one up "
     "(or set GAIA_LKM_ACCESS_KEY / LKM_ACCESS_KEY).\n\n"
     "Flow: `submit` uploads a PDF and returns a task id; `status` reads that "
-    "task once; `result` fetches what it produced. `submit --wait` does the "
-    "polling for you. Extraction commonly takes several minutes to a quarter "
-    "of an hour.\n\n"
+    "task once; `result` fetches what it produced. `submit --wait` polls that "
+    "upload only — an existing task_id is polled by calling `status` again. "
+    "Extraction commonly takes several minutes to a quarter of an hour.\n\n"
     "Terminal states are succeeded, partial, and failed. `partial` is a "
     "non-retryable business failure (review, too short, collection); do not "
     "resubmit the same PDF. `failed` is technical and may be submitted again.\n\n"
     "This is knowledge extraction, not layout parsing: it returns claims and "
     "reasoning, not page text, tables, or formulas.\n\n"
+    "Extract costs 1.00 CNY per successful paper, or 0.10 CNY on a cache hit.\n\n"
     "Configured indexes: bohrium (default). Set GAIA_LKM_INDEX_<NAME>_URL "
     "to add a named LKM index.\n\n"
-    f"API docs: {APIFOX_BASE_URL}\n"
+    f"API docs: {APIFOX_BASE_URL}\n\n"
     "Endpoint links: gaia extract docs\n\n"
     "Exit codes: 0 ok / 1 business error / 2 transport / 3 no key / 4 bad args."
 )
@@ -44,7 +55,7 @@ extract_app = typer.Typer(
     no_args_is_help=True,
 )
 
-extract_app.command(name="docs")(docs_command)
+extract_app.command(name="docs", epilog=_DOCS_EPILOG)(docs_command)
 extract_app.command(name="submit", epilog=_SUBMIT_EPILOG)(submit_command)
 extract_app.command(name="status", epilog=_STATUS_EPILOG)(status_command)
 extract_app.command(name="result", epilog=_RESULT_EPILOG)(result_command)
