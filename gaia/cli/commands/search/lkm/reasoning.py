@@ -125,6 +125,12 @@ def reasoning_command(
             help=f"Restrict query mode to these source DOI values (repeatable, max {MAX_DOIS}).",
         ),
     ] = None,
+    tags: Annotated[
+        list[str] | None,
+        typer.Option(
+            "--tag", help="Filter by paper tag. Repeat to match any of the supplied tags."
+        ),
+    ] = None,
     title: Annotated[
         str | None,
         typer.Option(
@@ -224,6 +230,7 @@ def reasoning_command(
             keywords
             or paper_ids
             or dois
+            or tags
             or title
             or publication_date_start
             or publication_date_end
@@ -234,7 +241,7 @@ def reasoning_command(
         ):
             typer.echo(
                 "Error: --claim-id mode does not accept query-search options "
-                "(--retrieval-mode, --keywords, --paper-ids, --doi, --title, "
+                "(--retrieval-mode, --keywords, --paper-ids, --doi, --tag, --title, "
                 "--publication-date-start, --publication-date-end, "
                 "--no-limit-publication-date, --offset, --limit).",
                 err=True,
@@ -267,6 +274,7 @@ def reasoning_command(
         keywords=keywords,
         paper_ids=paper_ids,
         dois=dois,
+        tags=tags,
         title=title,
         publication_date_start=publication_date_start,
         publication_date_end=publication_date_end,
@@ -366,6 +374,7 @@ def _search_reasoning(
     keywords: list[str] | None,
     paper_ids: list[str] | None,
     dois: list[str] | None,
+    tags: list[str] | None,
     title: str | None,
     publication_date_start: str | None,
     publication_date_end: str | None,
@@ -393,6 +402,7 @@ def _search_reasoning(
         keywords=keywords,
         paper_ids=paper_ids,
         dois=dois,
+        tags=tags,
         title=title,
         publication_date_start=publication_date_start,
         publication_date_end=publication_date_end,
