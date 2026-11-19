@@ -408,6 +408,10 @@ class TestKnowledge:
                 "123",
                 "--paper-ids",
                 "456",
+                "--tag",
+                "alpha, beta",
+                "--tag",
+                "自由标签",
                 "--doi",
                 "10.1038/example",
                 "--title",
@@ -428,6 +432,7 @@ class TestKnowledge:
         assert body["filters"] == {
             "visibility": "private",
             "paper_ids": ["123", "456"],
+            "tags": ["alpha, beta", "自由标签"],
             "dois": ["10.1038/example"],
             "title": "phase stability",
             "publication_date_start": "2020-01-01",
@@ -1052,6 +1057,10 @@ class TestReasoning:
                 "journal",
                 "--paper-ids",
                 "123",
+                "--tag",
+                "alpha, beta",
+                "--tag",
+                "自由标签",
                 "--doi",
                 "10.1038/example",
                 "--title",
@@ -1069,6 +1078,7 @@ class TestReasoning:
         assert body["sort_by"] == "journal"
         assert body["filters"] == {
             "paper_ids": ["123"],
+            "tags": ["alpha, beta", "自由标签"],
             "dois": ["10.1038/example"],
             "title": "phase stability",
             "publication_date_start": "2020-01-01",
@@ -1143,7 +1153,10 @@ class TestReasoning:
         assert "--limit" in result.output
         assert _FakeClient.last_call == {}
 
-    def test_rejects_new_query_filters_in_claim_mode(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    @pytest.mark.parametrize("flag", ["--title", "--tag"])
+    def test_rejects_new_query_filters_in_claim_mode(
+        self, monkeypatch: pytest.MonkeyPatch, flag: str
+    ) -> None:
         _install_client(monkeypatch)
         result = runner.invoke(
             app,
@@ -1153,12 +1166,12 @@ class TestReasoning:
                 "reasoning",
                 "--claim-id",
                 "gcn_abc123",
-                "--title",
+                flag,
                 "phase stability",
             ],
         )
         assert result.exit_code == 4, result.output
-        assert "--title" in result.output
+        assert flag in result.output
         assert _FakeClient.last_call == {}
 
     def test_rejects_query_only_sort_values_in_claim_mode(

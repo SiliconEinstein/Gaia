@@ -79,6 +79,8 @@ recall, use default `hybrid` mode with `--keywords`. Use
 `sort_by` (`relevance`, `recent`, `journal`, or `comprehensive`), while
 repeatable `--paper-id` / `--paper-ids` and `--doi` / `--dois` map to
 `filters.paper_ids` and `filters.dois`. `--title` maps to `filters.title`.
+For `knowledge` and `reasoning <query>`, repeat `--tag` to match papers with any
+of the supplied tags. Paper metadata includes its `tags` list.
 `--publication-date-start`, `--publication-date-end`, and
 `--limit-publication-date/--no-limit-publication-date` map to the LKM
 publication-date filters. Dates must be `YYYY-MM-DD`. `--paper-id(s)` and
@@ -126,7 +128,7 @@ reasoning graph for one target claim.
 `reasoning <query>` searches whole reasoning chains and workflows
 (`POST /reasoning/search`), not individual paper knowledge hits. Query mode
 accepts `--retrieval-mode`, `--keywords`, `--sort-by`, `--paper-id` /
-`--paper-ids`, `--doi` / `--dois`, `--title`, publication-date filters,
+`--paper-ids`, `--doi` / `--dois`, `--tag`, `--title`, publication-date filters,
 `--offset`, and `--limit`, and the raw response carries `reasoning_chains` and
 `total`; it may also include `papers` when the backend provides paper metadata.
 Query-mode `--sort-by` maps to `sort_by` and accepts `relevance`, `recent`,
