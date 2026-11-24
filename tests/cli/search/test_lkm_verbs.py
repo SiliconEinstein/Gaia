@@ -202,6 +202,21 @@ class TestDocs:
 # --------------------------------------------------------------------------- #
 
 
+@pytest.mark.parametrize("tags", [[], [{"tag": "any tag", "description": "Example."}]])
+def test_tags_reads_catalog(monkeypatch: pytest.MonkeyPatch, tags: list[dict[str, str]]) -> None:
+    payload = {"code": 0, "data": {"tags": tags}}
+    _install_client(monkeypatch, response=payload)
+    result = runner.invoke(app, ["search", "lkm", "tags"])
+    assert result.exit_code == 0, result.output
+    assert json.loads(result.stdout) == payload
+    assert _FakeClient.last_call == {
+        "method": "GET",
+        "path": "/papers/tags",
+        "json_body": None,
+        "params": None,
+    }
+
+
 class TestPolicy:
     def test_filter_policy_preserves_gaia_defaults_without_spurious_server_defaults(
         self,
@@ -409,7 +424,7 @@ class TestKnowledge:
                 "--paper-ids",
                 "456",
                 "--tag",
-                "alpha, beta",
+                "alpha, beta",  # One literal tag; preserve its comma and space.
                 "--tag",
                 "自由标签",
                 "--doi",
@@ -1058,7 +1073,7 @@ class TestReasoning:
                 "--paper-ids",
                 "123",
                 "--tag",
-                "alpha, beta",
+                "alpha, beta",  # One literal tag; preserve its comma and space.
                 "--tag",
                 "自由标签",
                 "--doi",

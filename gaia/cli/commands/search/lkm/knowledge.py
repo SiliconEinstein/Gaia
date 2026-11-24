@@ -186,7 +186,8 @@ def knowledge_command(
     tags: Annotated[
         list[str] | None,
         typer.Option(
-            "--tag", help="Filter by paper tag. Repeat to match any of the supplied tags."
+            "--tag",
+            help="Repeat to match any paper tag. List available values with gaia search lkm tags.",
         ),
     ] = None,
     title: Annotated[
