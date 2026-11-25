@@ -183,6 +183,13 @@ def knowledge_command(
             help=f"Restrict to these source DOI values (repeatable, max {MAX_DOIS}).",
         ),
     ] = None,
+    tags: Annotated[
+        list[str] | None,
+        typer.Option(
+            "--tag",
+            help="Repeat to match any paper tag. List available values with gaia search lkm tags.",
+        ),
+    ] = None,
     title: Annotated[
         str | None,
         typer.Option(
@@ -254,6 +261,7 @@ def knowledge_command(
         visibility=visibility,
         paper_ids=paper_ids,
         dois=dois,
+        tags=tags,
         title=title,
         publication_date_start=publication_date_start,
         publication_date_end=publication_date_end,

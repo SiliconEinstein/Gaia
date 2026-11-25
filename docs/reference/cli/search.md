@@ -8,6 +8,7 @@ knowledge items, reasoning chains, workflows, bibliographic references, and
 extracted per-paper graphs.
 
 ```text
+gaia search lkm tags                        List available paper tags and descriptions
 gaia search lkm knowledge <query>           Find claims/questions/abstracts by topic
 gaia search lkm reasoning <query>           Find similar arguments or experiments
 gaia search lkm reasoning --claim-id <id>   Fetch reasoning for a supported conclusion
@@ -79,6 +80,7 @@ recall, use default `hybrid` mode with `--keywords`. Use
 `sort_by` (`relevance`, `recent`, `journal`, or `comprehensive`), while
 repeatable `--paper-id` / `--paper-ids` and `--doi` / `--dois` map to
 `filters.paper_ids` and `filters.dois`. `--title` maps to `filters.title`.
+For tag discovery, filtering examples, and result fields, see [Filter by paper tag](#filter-by-paper-tag).
 `--publication-date-start`, `--publication-date-end`, and
 `--limit-publication-date/--no-limit-publication-date` map to the LKM
 publication-date filters. Dates must be `YYYY-MM-DD`. `--paper-id(s)` and
@@ -126,7 +128,7 @@ reasoning graph for one target claim.
 `reasoning <query>` searches whole reasoning chains and workflows
 (`POST /reasoning/search`), not individual paper knowledge hits. Query mode
 accepts `--retrieval-mode`, `--keywords`, `--sort-by`, `--paper-id` /
-`--paper-ids`, `--doi` / `--dois`, `--title`, publication-date filters,
+`--paper-ids`, `--doi` / `--dois`, `--tag`, `--title`, publication-date filters,
 `--offset`, and `--limit`, and the raw response carries `reasoning_chains` and
 `total`; it may also include `papers` when the backend provides paper metadata.
 Query-mode `--sort-by` maps to `sort_by` and accepts `relevance`, `recent`,
@@ -188,6 +190,37 @@ while the index name resolves to the real URL and credential configuration.
 This build ships `bohrium` as the default configured index; `--server` remains
 a compatibility alias. Additional indexes can be added by setting
 `GAIA_LKM_INDEX_<NAME>_URL`.
+
+## Filter by paper tag
+
+List the available tags for free. Each entry in `data.tags[]` contains a `tag`
+value accepted by the search commands and an English `description`. For example,
+these commands show the catalog, then select the Japanese tag from that same response:
+
+```bash
+gaia search lkm tags --out tags.json
+jq -r '.data.tags[] | [.tag, .description] | @tsv' tags.json
+tag=$(jq -er '.data.tags[] | select(.tag == "lang:ja") | .tag' tags.json)
+```
+
+Pass the selected value to either search. The following examples include older
+papers and print the DOI and tags of the returned papers:
+
+```bash
+gaia search lkm knowledge "clinical outcomes" --tag "$tag" --retrieval-mode semantic --no-limit-publication-date |
+  jq '.data.papers[] | {doi, tags}'
+gaia search lkm reasoning "clinical outcomes" --tag "$tag" --retrieval-mode semantic --no-limit-publication-date |
+  jq '.data.reasoning_chains[].paper | {doi, tags}'
+```
+
+For example, the knowledge search returned `{"doi":"10.3937/kampomed.75.75","tags":["lang:ja"]}`.
+Result order can change as the index is updated.
+
+Each `--tag` takes one literal value. For example, `--tag alpha --tag beta --tag zeta`
+sends `"filters": {"tags": ["alpha", "beta", "zeta"]}`. Both commands match papers
+with **any** supplied tag. To include German, Russian, or Japanese papers, use
+`--tag lang:de --tag lang:ru --tag lang:ja`. For papers authored by a Nobel
+laureate or a Fields Medal recipient, use `--tag author:nobel_laureate --tag author:fields_medalist`.
 
 ## Design Contract
 

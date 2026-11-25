@@ -1,0 +1,11 @@
+{
+  "argv": [
+    "search",
+    "lkm",
+    "tags",
+    "--help"
+  ],
+  "exit_code": 0,
+  "stderr": "",
+  "stdout": "\n Usage: gaia search lkm tags [OPTIONS]\n\n List available paper tags and their English descriptions for free.\n\n╭─ Options ────────────────────────────────────────────────────────────────────╮\n│ --index,--server        TEXT  Configured LKM index id. [default: bohrium]    │\n│ --out                   PATH  Write JSON to PATH (atomic) instead of stdout. │\n│ --help                        Show this message and exit.                    │\n╰──────────────────────────────────────────────────────────────────────────────╯\n\n"
+}

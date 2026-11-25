@@ -10,7 +10,7 @@ on:
 
 jobs:
   nightly:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 
     strategy:
       # Single-entry matrix (Python 3.12 only). Kept as a matrix so future

@@ -20,6 +20,7 @@ from gaia.cli.commands.search.lkm.knowledge import (
 from gaia.cli.commands.search.lkm.paper_graph import _PACKAGE_EPILOG, package_command
 from gaia.cli.commands.search.lkm.reasoning import _REASONING_EPILOG, reasoning_command
 from gaia.cli.commands.search.lkm.references import _REFERENCES_EPILOG, references_command
+from gaia.cli.commands.search.lkm.tags import tags_command
 from gaia.cli.commands.search.lkm.variables import _NODES_EPILOG, nodes_command
 
 # Rich reflows a single epilog paragraph: only a blank line (\n\n) starts a
@@ -68,6 +69,7 @@ lkm_app = typer.Typer(
 
 lkm_app.add_typer(auth_app, name="auth")
 lkm_app.command(name="docs", epilog=_DOCS_EPILOG)(docs_command)
+lkm_app.command(name="tags")(tags_command)
 lkm_app.command(name="knowledge", epilog=_KNOWLEDGE_EPILOG)(knowledge_command)
 lkm_app.command(name="reasoning", epilog=_REASONING_EPILOG)(reasoning_command)
 lkm_app.command(name="nodes", epilog=_NODES_EPILOG)(nodes_command)

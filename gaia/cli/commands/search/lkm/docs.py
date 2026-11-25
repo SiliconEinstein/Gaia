@@ -13,6 +13,7 @@ APIFOX_PAPERS_GRAPH_URL = f"{APIFOX_BASE_URL}/api-459808997"
 APIFOX_FEEDBACK_URL = f"{APIFOX_BASE_URL}/api-474487249"
 PAPERS_REFERENCE_PATH = "POST /papers/reference"
 ENDPOINT_DOCS: tuple[tuple[str, str], ...] = (
+    ("paper tag catalog", "GET /papers/tags"),
     ("knowledge search", APIFOX_SEARCH_URL),
     ("reasoning search", APIFOX_REASONING_SEARCH_URL),
     ("claim reasoning lookup", APIFOX_CLAIM_REASONING_URL),
