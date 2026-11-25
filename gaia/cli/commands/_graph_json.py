@@ -11,7 +11,7 @@ import json
 from collections import Counter
 from collections.abc import Iterable, Iterator
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from gaia.engine.ir.coarsen import HELPER_LABEL_PREFIXES
 
@@ -151,6 +151,67 @@ def _graph_context(
     return beliefs, priors, exported, kid_module, modules, cross_module_edges
 
 
+def _strategy_reason(strategy: dict[str, Any]) -> str:
+    """Return the local-layer reasoning prose for *strategy*.
+
+    A DSL author's ``reason=`` argument compiles to one of two places
+    depending on its shape (``ReasonInput``, see
+    ``gaia.engine.lang.compiler.compile``):
+
+    - list-of-steps form -> ``steps[i].reasoning`` (``gaia.engine.ir.strategy
+      .Step``), joined here the same way :func:`gaia.cli.commands._inquiry
+      ._strategy_rationale` does, since a strategy can record more than one
+      step and truncating to ``steps[0]`` would silently drop the rest;
+    - plain-string form -> merged into ``metadata["reason"]`` by
+      ``_metadata_with_reason`` instead of becoming a step.
+
+    ``steps`` is local-scope only (``None`` at global scope, which has
+    nothing to show). The top-level ``reason`` key never exists on compiled
+    IR — no such field is defined on ``Strategy`` — but is kept as a last
+    fallback for hand-built dict fixtures that set it directly, mirroring
+    :func:`gaia.cli.commands._obsidian`'s ``(metadata.reason) or (reason)``
+    chain.
+    """
+    parts: list[str] = []
+    for step in strategy.get("steps") or []:
+        if not isinstance(step, dict):
+            continue
+        reasoning = step.get("reasoning")
+        if isinstance(reasoning, str) and reasoning.strip():
+            parts.append(reasoning.strip())
+    if parts:
+        return "\n\n".join(parts)
+    metadata = strategy.get("metadata") or {}
+    if metadata.get("reason"):
+        return cast(str, metadata["reason"])
+    return cast(str, strategy.get("reason", ""))
+
+
+def _strategy_effect(strategy: dict[str, Any]) -> float | None:
+    """Return the signed support/lowering effect of *strategy* on its conclusion.
+
+    ``infer``/``noisy_and`` strategies carry an inline
+    ``conditional_probabilities`` CPT. For the common single-premise case
+    (and for the ``infer(evidence, hypothesis=..., p_e_given_h=...,
+    p_e_given_not_h=...)`` DSL sugar with extra ``given`` context, which only
+    ever fills the last two CPT slots — see
+    ``gaia.engine.lang.compiler.compile._infer_conditional_probabilities``),
+    the last two entries are exactly
+    ``[P(conclusion | ..., premise=False), P(conclusion | ..., premise=True)]``.
+    Their difference is positive when the premise raises belief in the
+    conclusion and negative when it lowers it, in [-1, 1].
+
+    Other strategy forms (``support``/``deduction``/... FormalStrategy
+    skeletons, ``associate``) carry no strategy-level CPT and are left
+    unscored (``None``) rather than guessed — they have no data that
+    supports the same raise/lower reading.
+    """
+    cp = strategy.get("conditional_probabilities")
+    if not cp or len(cp) < 2:
+        return None
+    return cast(float, cp[-1] - cp[-2])
+
+
 def _iter_strategy_nodes(
     ir: dict[str, Any], kid_module: dict[str, str]
 ) -> Iterator[dict[str, Any]]:
@@ -164,7 +225,9 @@ def _iter_strategy_nodes(
             "type": "strategy",
             "strategy_type": strategy.get("type", ""),
             "module": kid_module.get(conc, ""),
-            "reason": strategy.get("reason", ""),
+            "reason": _strategy_reason(strategy),
+            "conditional_probabilities": strategy.get("conditional_probabilities"),
+            "effect": _strategy_effect(strategy),
         }
 
 
@@ -206,7 +269,12 @@ def _iter_edges(ir: dict[str, Any]) -> Iterator[dict[str, Any]]:
             yield {"source": premise, "target": strat_id, "role": "premise"}
         for background in strategy.get("background", []):
             yield {"source": background, "target": strat_id, "role": "background"}
-        yield {"source": strat_id, "target": conc, "role": "conclusion"}
+        yield {
+            "source": strat_id,
+            "target": conc,
+            "role": "conclusion",
+            "effect": _strategy_effect(strategy),
+        }
 
     for i, operator in enumerate(ir.get("operators", [])):
         conc = operator.get("conclusion")

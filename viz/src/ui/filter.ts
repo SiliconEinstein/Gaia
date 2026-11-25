@@ -13,8 +13,14 @@ export function mountFilter(host: HTMLElement, graph: Graph, sigma: Sigma): Filt
     counts.set(k, (counts.get(k) ?? 0) + 1);
   });
 
+  // Generated/helper knowledge nodes (see isGeneratedHelper) start off —
+  // buildGraph() already collapses them and their incident edges so they
+  // don't dominate the layout; this default just keeps the checkbox honest
+  // about that starting state instead of showing "checked" for a bucket
+  // that's actually hidden.
+  const defaultEnabled = (t: string) => t !== 'generated';
   const types = Array.from(counts.keys()).sort();
-  const enabled = new Map<string, boolean>(types.map((t) => [t, true]));
+  const enabled = new Map<string, boolean>(types.map((t) => [t, defaultEnabled(t)]));
 
   const root = document.createElement('div');
   root.className = 'filter-panel';
@@ -28,7 +34,7 @@ export function mountFilter(host: HTMLElement, graph: Graph, sigma: Sigma): Filt
         .map(
           (t) => `
         <label class="filter-row">
-          <input type="checkbox" data-type="${t}" checked />
+          <input type="checkbox" data-type="${t}" ${defaultEnabled(t) ? 'checked' : ''} />
           <span>${t}</span>
           <span class="count">${counts.get(t)}</span>
         </label>`,

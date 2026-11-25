@@ -2,7 +2,7 @@
 
 > **Companion to** [`docs/reference/cli/author.md`](../../docs/reference/cli/author.md) and the hand-authored package at `src/mendel_v0_5/__init__.py`. This document shows how the Mendel single-factor cross example can be authored end-to-end through `gaia author <verb>`, `gaia bayes <verb>`, and `gaia pkg <verb>`, without hand-editing the Python source. It mirrors the galileo walkthrough at `examples/galileo-v0-5-gaia/CLI-AUTHORED.md` and exercises the harder of the two v0.5 example packages: `bayes` group + `Variable` + Variable-targeted `observe(..., value=...)` + multi-file (`priors.py`) + `--background` on every relation verb.
 
-> **Reproduction semantics**: this walkthrough reproduces the IR (knowledge/strategy content + counts + types) of the hand-authored package, not the byte-text source. See the equivalence test under `tests/cli/mendel_demo/` for the asserted axes; a small set of source-text divergences (chiefly the single-`--label` discipline) is documented at end-of-doc and is intrinsic-by-design.
+> **Reproduction semantics**: this walkthrough reproduces the IR (knowledge/strategy content + counts + types) of the hand-authored package, not the byte-text source. See the equivalence test under `tests/cli/mendel_demo/` for the asserted axes; a small set of source-text divergences (chiefly that each statement's binding name carries the IR label) is documented at end-of-doc and is intrinsic-by-design.
 
 ## What you get
 
@@ -29,7 +29,7 @@ Mendel touches every cli capability that galileo did not:
 | `author observe --value` | 1 Variable-targeted quantitative observation (`f2_count_observation`) |
 | `--background` on relations | `exclusive`, every `observe`, every `derive`, every `equal`, every `contradict`, every `bayes.model`, `bayes.compare` |
 | Inline-prose `derive --conclusion-prose` | every mendel `derive(...)` uses the inline-prose shape |
-| Single-`--label` discipline (intrinsic) | every cli statement renders `label=` inside the call |
+| Binding name carries the IR label (intrinsic) | every cli statement's IR label defaults to its binding name (`--dsl-binding-name`, or `--label` for `bayes` verbs) |
 | Narrowed deprecation scan | hand-authored binding names like `competing_models` reused verbatim |
 
 Mendel is therefore the empirical demonstration that the cli surface covers the full v0.5 engine. If anything that mendel reaches for is not directly cli-authorable, the capability claim has a hole; the equivalence test fails fast under that condition.
@@ -66,11 +66,11 @@ The Mendel package uses Variables for the F2 counts that feed the `Binomial(name
 
 ```bash
 gaia author variable \
-  --label f2_total_count --symbol n_f2 --domain Nat --value 395 \
+  --dsl-binding-name f2_total_count --symbol n_f2 --domain Nat --value 395 \
   --target ./mendel-cli-mirror-gaia
 
 gaia author variable \
-  --label f2_dominant_count --symbol k_dominant --domain Nat --value 295 \
+  --dsl-binding-name f2_dominant_count --symbol k_dominant --domain Nat --value 295 \
   --target ./mendel-cli-mirror-gaia
 ```
 
@@ -89,17 +89,17 @@ resolution. Numerically identical at the IR level either way.
 ```bash
 gaia author note \
   "单因子杂交实验从两个稳定亲本品系开始：一个亲本稳定表现显性表型，另一个亲本稳定表现隐性表型；二者杂交得到 F1，再让 F1 自交得到 F2。" \
-  --label monohybrid_cross_setup \
+  --dsl-binding-name monohybrid_cross_setup \
   --target ./mendel-cli-mirror-gaia
 
 gaia author note \
   "在该性状上，显性遗传因子会在表型上遮蔽隐性遗传因子。" \
-  --label dominance_background \
+  --dsl-binding-name dominance_background \
   --target ./mendel-cli-mirror-gaia
 
 gaia author note \
   "F2 的显性/隐性计数是有限样本，因此用点似然（二项 PMF 在观测计数处的取值）衡量模型与数据的贴合度；对手理论取 p ~ Uniform[0,1] 的 diffuse 先验作为参考尺度，不引入任何具体的替代二项参数。" \
-  --label finite_sample_background \
+  --dsl-binding-name finite_sample_background \
   --target ./mendel-cli-mirror-gaia
 ```
 
@@ -112,19 +112,19 @@ verbatim.
 ```bash
 gaia author claim \
   "孟德尔分离模型：遗传因子是离散的；每个个体对某一性状携带一对因子；形成配子时成对因子分离，受精时重新配对；显性因子会遮蔽隐性因子。" \
-  --label mendelian_segregation_model \
+  --dsl-binding-name mendelian_segregation_model \
   --target ./mendel-cli-mirror-gaia
 
 gaia author claim \
   "混合遗传模型：亲本性状在后代中连续平均；一旦平均，离散的显性/隐性类别就不应在 F2 中作为可计数的类型存在。" \
-  --label blending_inheritance_model \
+  --dsl-binding-name blending_inheritance_model \
   --target ./mendel-cli-mirror-gaia
 
 gaia author exclusive \
   --a mendelian_segregation_model --b blending_inheritance_model \
   --background monohybrid_cross_setup \
   --rationale "在同一个单因子性状解释上，离散分离模型和连续混合模型是竞争解释。" \
-  --label competing_models \
+  --dsl-binding-name competing_models \
   --target ./mendel-cli-mirror-gaia
 ```
 
@@ -139,21 +139,21 @@ gaia author observe \
   --observation-prose "纯种显性亲本与纯种隐性亲本杂交后，F1 后代统一表现显性表型。" \
   --background monohybrid_cross_setup \
   --rationale "这是单因子杂交实验中 F1 代的定性观察。" \
-  --label f1_uniform_dominant_observation \
+  --dsl-binding-name f1_uniform_dominant_observation \
   --target ./mendel-cli-mirror-gaia
 
 gaia author observe \
   --observation-prose "F2 个体可以被清晰地划分为显性和隐性两个离散表型类别，不存在连续中间态。" \
   --background monohybrid_cross_setup \
   --rationale "这是单因子杂交实验中 F2 代的定性观察：表型呈两类，不是连续分布。" \
-  --label f2_has_discrete_classes_observation \
+  --dsl-binding-name f2_has_discrete_classes_observation \
   --target ./mendel-cli-mirror-gaia
 
 gaia author observe \
   --observation-prose "F1 自交得到的 F2 后代中，原隐性表型作为离散类别重新出现。" \
   --background monohybrid_cross_setup \
   --rationale "这是单因子杂交实验中 F2 代的定性观察。" \
-  --label f2_recessive_reappears_observation \
+  --dsl-binding-name f2_recessive_reappears_observation \
   --target ./mendel-cli-mirror-gaia
 
 gaia author observe \
@@ -161,7 +161,7 @@ gaia author observe \
   --value 295 \
   --background monohybrid_cross_setup,f2_has_discrete_classes_observation \
   --rationale "这是用于贝叶斯点似然比较的 F2 显性/隐性计数数据。" \
-  --label f2_count_observation \
+  --dsl-binding-name f2_count_observation \
   --target ./mendel-cli-mirror-gaia
 ```
 
@@ -179,14 +179,14 @@ gaia author derive \
   --given mendelian_segregation_model \
   --background monohybrid_cross_setup,dominance_background \
   --rationale "显性因子在杂合 F1 个体中遮蔽隐性因子。" \
-  --label mendel_predicts_f1_dominance \
+  --dsl-binding-name mendel_predicts_f1_dominance \
   --target ./mendel-cli-mirror-gaia
 
 gaia author equal \
   --a mendel_predicts_f1_dominance --b f1_uniform_dominant_observation \
   --background monohybrid_cross_setup \
   --rationale "孟德尔模型对 F1 统一显性的预测与观察相符。" \
-  --label f1_mendel_match \
+  --dsl-binding-name f1_mendel_match \
   --target ./mendel-cli-mirror-gaia
 
 gaia author derive \
@@ -194,14 +194,14 @@ gaia author derive \
   --given mendelian_segregation_model \
   --background monohybrid_cross_setup,dominance_background \
   --rationale "离散因子 + 遮蔽 → 两个离散表型类别。" \
-  --label mendel_predicts_discrete_classes \
+  --dsl-binding-name mendel_predicts_discrete_classes \
   --target ./mendel-cli-mirror-gaia
 
 gaia author equal \
   --a mendel_predicts_discrete_classes --b f2_has_discrete_classes_observation \
   --background monohybrid_cross_setup \
   --rationale "孟德尔模型预言的两类离散表型与观察到的 F2 两类表型一致。" \
-  --label f2_discrete_classes_mendel_match \
+  --dsl-binding-name f2_discrete_classes_mendel_match \
   --target ./mendel-cli-mirror-gaia
 
 gaia author derive \
@@ -209,14 +209,14 @@ gaia author derive \
   --given mendelian_segregation_model \
   --background monohybrid_cross_setup,dominance_background \
   --rationale "分离模型保留了隐性因子，并允许它在 F2 中重新组合为纯合隐性。" \
-  --label mendel_predicts_recessive_reappearance \
+  --dsl-binding-name mendel_predicts_recessive_reappearance \
   --target ./mendel-cli-mirror-gaia
 
 gaia author equal \
   --a mendel_predicts_recessive_reappearance --b f2_recessive_reappears_observation \
   --background monohybrid_cross_setup \
   --rationale "孟德尔模型对 F2 隐性重现的预测与观察相符。" \
-  --label f2_reappearance_mendel_match \
+  --dsl-binding-name f2_reappearance_mendel_match \
   --target ./mendel-cli-mirror-gaia
 
 gaia author derive \
@@ -224,7 +224,7 @@ gaia author derive \
   --given mendelian_segregation_model \
   --background monohybrid_cross_setup,dominance_background,finite_sample_background \
   --rationale "F1 配子等概率结合，给出 1:2:1 的基因型分布，即每个 F2 个体独立以概率 3/4 表现为显性。" \
-  --label mendel_predicts_three_to_one_ratio \
+  --dsl-binding-name mendel_predicts_three_to_one_ratio \
   --target ./mendel-cli-mirror-gaia
 ```
 
@@ -276,14 +276,14 @@ gaia author derive \
   --given blending_inheritance_model \
   --background monohybrid_cross_setup \
   --rationale "连续平均模型把亲本性状视为在后代中均化。" \
-  --label blending_predicts_intermediate_f1 \
+  --dsl-binding-name blending_predicts_intermediate_f1 \
   --target ./mendel-cli-mirror-gaia
 
 gaia author contradict \
   --a blending_predicts_intermediate_f1 --b f1_uniform_dominant_observation \
   --background monohybrid_cross_setup \
   --rationale "F1 统一显性与混合模型的中间表型预测相冲突。" \
-  --label f1_blending_conflict \
+  --dsl-binding-name f1_blending_conflict \
   --target ./mendel-cli-mirror-gaia
 
 gaia author derive \
@@ -291,14 +291,14 @@ gaia author derive \
   --given blending_inheritance_model \
   --background monohybrid_cross_setup \
   --rationale "连续平均不保留可重新组合的离散遗传单位，因此不给出离散的表型分类。" \
-  --label blending_predicts_f2_continuous \
+  --dsl-binding-name blending_predicts_f2_continuous \
   --target ./mendel-cli-mirror-gaia
 
 gaia author contradict \
   --a blending_predicts_f2_continuous --b f2_has_discrete_classes_observation \
   --background monohybrid_cross_setup \
   --rationale "F2 明确划分为两类离散表型，与混合模型的连续分布预测相冲突——这是 framework 级别的冲突：blending 否认的是 F2 可被分类这件事本身。" \
-  --label f2_discrete_classes_blending_conflict \
+  --dsl-binding-name f2_discrete_classes_blending_conflict \
   --target ./mendel-cli-mirror-gaia
 
 gaia author derive \
@@ -306,14 +306,14 @@ gaia author derive \
   --given blending_inheritance_model \
   --background monohybrid_cross_setup \
   --rationale "混合模型没有保留可重新组合的离散隐性因子。" \
-  --label blending_predicts_no_recessive_reappearance \
+  --dsl-binding-name blending_predicts_no_recessive_reappearance \
   --target ./mendel-cli-mirror-gaia
 
 gaia author contradict \
   --a blending_predicts_no_recessive_reappearance --b f2_recessive_reappears_observation \
   --background monohybrid_cross_setup \
   --rationale "F2 隐性表型作为离散类别重新出现，与混合模型的预测相冲突。" \
-  --label f2_reappearance_blending_conflict \
+  --dsl-binding-name f2_reappearance_blending_conflict \
   --target ./mendel-cli-mirror-gaia
 ```
 
@@ -382,18 +382,23 @@ The counts match the hand-authored package compile (`44 / 9 / 7`).
 
 ## Documented divergences
 
-All remaining divergences are either ratified intrinsic to the
-single-`--label` discipline, or a non-semantic source-text difference
-between literal-value and imported-constant authoring (both compile to
-the same IR; the equivalence tests pass byte-text on every axis other
-than the single-`--label` discipline).
+All remaining divergences are either intrinsic to how each statement's
+IR label is spelled at the source level, or a non-semantic source-text
+difference between literal-value and imported-constant authoring (both
+compile to the same IR; the equivalence tests pass byte-text on every
+axis other than the label-bag axis).
 
-### 1. LHS binding equals `label=` kwarg (intrinsic)
+### 1. Binding name carries the IR label (intrinsic)
 
-Same as the galileo intrinsic divergence. The cli enforces
-`label_name = verb(..., label="label_name")` — the LHS Python binding
-and the DSL `label=` kwarg are forced equal because the cli's single
-`--label` flag drives both.
+Same as the galileo intrinsic divergence. Each `gaia author` statement
+takes its Python binding from `--dsl-binding-name`; when no engine
+`--label` kwarg is passed, the engine's package loader defaults the
+compiled IR label to that binding name. The `gaia bayes` verbs spell
+the binding with `--label` (which also renders an explicit `label=`
+kwarg). Either way the IR label equals the binding name, so the
+walkthrough names every binding after its intended label; some
+hand-authored statements reach the same label through a distinct
+binding plus an explicit `label=` kwarg.
 
 The current Mendel package no longer needs a post-binding label mutation for
 the F2-count data. The CLI-authored source emits the same Variable-targeted
@@ -444,14 +449,14 @@ The pytest fixture at `tests/cli/mendel_demo/test_equivalence.py` runs the full 
 | `operator-count` | BYTE_TEXT | 7 operators on both sides. |
 | `total-knowledge-count` | BYTE_TEXT | 44 knowledge nodes on both sides. |
 | `knowledge-type-multiset` | BYTE_TEXT | `{note: 3, claim: 41}` on both sides. |
-| `label-bag` | CONTENT_SET | Single-`--label` discipline forces every cli statement to render `label=`; some hand-authored statements omit it when binding name == label. Set is identical; multiset differs by the `label=` rendering choice. |
+| `label-bag` | CONTENT_SET | Every cli statement's IR label defaults to its binding name; some hand-authored statements reach the same label through a distinct binding plus an explicit `label=` kwarg. The set of distinct labels is identical; the source-text spelling differs. |
 | `bayes-model-count` | BYTE_TEXT | 2 `bayes.model` calls + 1 `bayes.compare` call on both sides. |
 | `register-prior-count` | BYTE_TEXT | 6 `register_prior` calls in `priors.py` on both sides. |
 | `source-id-count` | BYTE_TEXT | `register_prior` calls render zero `source_id=` mentions on both sides — the cli omits the kwarg when `--source-id` is not explicitly passed. |
 | `variable-observation` | structural assertion | The F2-count data line uses `observe(f2_dominant_count, value=295, ...)`, producing the observation metadata required by Bayes compare. |
 | `bayes-inline-distribution` | structural assertion | `bayes.model(...)` calls inline `Binomial(...)` / `BetaBinomial(...)` directly — no pre-bound `mendel_count_distribution` / `diffuse_count_distribution` helper bindings. |
 
-The multi-level helper at `tests/cli/_equivalence_levels.py` underwrites both this mendel demo and the galileo demo's equivalence (galileo applies BYTE_TEXT on the resolvable axes, CONTENT_SET on the intrinsic single-`--label` axis; mendel adds the bayes / Variable-observation / multi-file axes on top).
+The multi-level helper at `tests/cli/_equivalence_levels.py` underwrites both this mendel demo and the galileo demo's equivalence (galileo applies BYTE_TEXT on the resolvable axes, CONTENT_SET on the intrinsic label-bag axis; mendel adds the bayes / Variable-observation / multi-file axes on top).
 
 ## See also
 
